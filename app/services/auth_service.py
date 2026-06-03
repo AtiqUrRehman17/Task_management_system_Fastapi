@@ -50,7 +50,7 @@ class AuthService:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        # safer verification (no 500 crash anymore)
+        
         if not verify_password(login_data.password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
