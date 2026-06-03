@@ -5,7 +5,7 @@ from datetime import datetime
 
 from .routers import auth, tasks
 from .core.database import engine, Base
-from .services.notification_service import NotificationService
+# from .services.notification_service import NotificationService
 
 # API Version Prefix
 API_V1_PREFIX = "/api/v1"
@@ -72,16 +72,16 @@ def health_check():
     }
 
 # Startup event
-@app.on_event("startup")
-async def startup_event():
-    # Initialize notification scheduler
-    NotificationService.get_scheduler()
-    print("Notification scheduler started")
+# @app.on_event("startup")
+# async def startup_event():
+#     # Initialize notification scheduler
+#     NotificationService.get_scheduler()
+#     print("Notification scheduler started")
 
 # Shutdown event
-@app.on_event("shutdown")
-async def shutdown_event():
-    scheduler = NotificationService.get_scheduler()
-    if scheduler:
-        scheduler.shutdown()
-        print("Notification scheduler shut down")
+# @app.on_event("shutdown")
+# async def shutdown_event():
+#     scheduler = NotificationService.get_scheduler()
+#     if scheduler:
+#         scheduler.shutdown()
+#         print("Notification scheduler shut down")

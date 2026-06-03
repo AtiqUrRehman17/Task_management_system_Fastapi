@@ -23,12 +23,17 @@ class TaskService:
         """Ensure datetime is timezone-aware."""
         if dt is None:
             return None
+
         if dt.tzinfo is None:
             return dt.replace(tzinfo=timezone.utc)
+
         return dt
 
     def create_task(self, task_data: TaskCreate) -> Task:
-        """Create a new task with scheduled_time auto-set to now."""
+        """
+        Create a new task.
+        """
+
         current_time = datetime.now(timezone.utc)
 
         db_task = Task(
@@ -43,10 +48,34 @@ class TaskService:
         self.db.commit()
         self.db.refresh(db_task)
 
+        # Schedule notifications if scheduled_time exists
+        if db_task.scheduled_time:
+
+            notification_ids = (
+                NotificationService.schedule_task_notification(
+                    db_task.id,
+                    db_task.title,
+                    self.current_user.email,
+                    db_task.scheduled_time
+                )
+            )
+
+            db_task.one_day_task_id = (
+                notification_ids.get("one_day_task_id")
+            )
+
+            db_task.one_hour_task_id = (
+                notification_ids.get("one_hour_task_id")
+            )
+
+            self.db.commit()
+            self.db.refresh(db_task)
+
         return db_task
 
     def get_task(self, task_id: int) -> Task:
         """Get a single task by ID, scoped to current user."""
+
         task = self.db.query(Task).filter(
             and_(
                 Task.id == task_id,
@@ -68,38 +97,57 @@ class TaskService:
         status: Optional[TaskStatus] = None,
         search: Optional[str] = None
     ) -> tuple[List[Task], int]:
-        """Get paginated tasks with optional filtering and sorting."""
+
         query = self.db.query(Task).filter(
             Task.user_id == self.current_user.id
         )
 
-        # Filter by status
         if status:
-            query = query.filter(Task.status == status)
+            query = query.filter(
+                Task.status == status
+            )
 
-        # Search by title or description
         if search:
             query = query.filter(
                 or_(
-                    Task.title.ilike(f"%{search}%"),
-                    Task.description.ilike(f"%{search}%")
+                    Task.title.ilike(
+                        f"%{search}%"
+                    ),
+                    Task.description.ilike(
+                        f"%{search}%"
+                    )
                 )
             )
 
-        # Dynamic sorting
-        if pagination.sort_by and hasattr(Task, pagination.sort_by):
-            sort_column = getattr(Task, pagination.sort_by)
-            if pagination.sort_order.lower() == "desc":
-                query = query.order_by(sort_column.desc())
-            else:
-                query = query.order_by(sort_column.asc())
-        else:
-            query = query.order_by(Task.created_at.desc())
+        if (
+            pagination.sort_by
+            and hasattr(Task, pagination.sort_by)
+        ):
 
-        # Count before pagination
+            sort_column = getattr(
+                Task,
+                pagination.sort_by
+            )
+
+            if (
+                pagination.sort_order.lower()
+                == "desc"
+            ):
+                query = query.order_by(
+                    sort_column.desc()
+                )
+            else:
+                query = query.order_by(
+                    sort_column.asc()
+                )
+
+        else:
+            query = query.order_by(
+                Task.created_at.desc()
+            )
+
         total = query.count()
 
-        # Apply pagination using skip property from PaginationParams
         tasks = (
             query
             .offset(pagination.skip)
@@ -114,79 +162,148 @@ class TaskService:
         task_id: int,
         task_data: TaskUpdate
     ) -> Task:
-        """Update a task."""
+        """
+        Update a task and reschedule notifications.
+        """
+
         task = self.get_task(task_id)
 
-        update_dict = task_data.model_dump(exclude_unset=True)
+        update_dict = task_data.model_dump(
+            exclude_unset=True
+        )
 
         if "scheduled_time" in update_dict:
-            new_scheduled_time = self._ensure_timezone_aware(
-                update_dict["scheduled_time"]
+
+            new_scheduled_time = (
+                self._ensure_timezone_aware(
+                    update_dict["scheduled_time"]
+                )
             )
-            update_dict["scheduled_time"] = new_scheduled_time
+
+            update_dict[
+                "scheduled_time"
+            ] = new_scheduled_time
 
             if new_scheduled_time:
-                current_time = datetime.now(timezone.utc)
-                if new_scheduled_time < current_time:
+
+                current_time = datetime.now(
+                    timezone.utc
+                )
+
+                if (
+                    new_scheduled_time
+                    < current_time
+                ):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Scheduled time cannot be in the past"
+                        detail=(
+                            "Scheduled time "
+                            "cannot be in the past"
+                        )
                     )
+
+        # Cancel existing notifications
+        NotificationService.cancel_task_notifications(
+            task.one_day_task_id,
+            task.one_hour_task_id
+        )
 
         for field, value in update_dict.items():
             setattr(task, field, value)
 
+        task.one_day_task_id = None
+        task.one_hour_task_id = None
+
         self.db.commit()
         self.db.refresh(task)
 
-        if "scheduled_time" in update_dict:
-            new_scheduled_time = self._ensure_timezone_aware(
-                task.scheduled_time
+        if task.scheduled_time:
+
+            current_time = datetime.now(
+                timezone.utc
             )
 
-            NotificationService.cancel_task_notifications(task_id)
+            if task.scheduled_time > current_time:
 
-            if new_scheduled_time:
-                current_time = datetime.now(timezone.utc)
-                if new_scheduled_time > current_time:
+                notification_ids = (
                     NotificationService.schedule_task_notification(
                         task.id,
                         task.title,
                         self.current_user.email,
-                        new_scheduled_time
+                        task.scheduled_time
                     )
+                )
+
+                task.one_day_task_id = (
+                    notification_ids.get(
+                        "one_day_task_id"
+                    )
+                )
+
+                task.one_hour_task_id = (
+                    notification_ids.get(
+                        "one_hour_task_id"
+                    )
+                )
+
+                self.db.commit()
+                self.db.refresh(task)
 
         return task
 
-    def delete_task(self, task_id: int) -> bool:
-        """Delete a task and cancel its notifications."""
+    def delete_task(
+        self,
+        task_id: int
+    ) -> bool:
+        """
+        Delete a task and cancel reminders.
+        """
+
         task = self.get_task(task_id)
 
-        NotificationService.cancel_task_notifications(task_id)
+        NotificationService.cancel_task_notifications(
+            task.one_day_task_id,
+            task.one_hour_task_id
+        )
 
         self.db.delete(task)
+
         self.db.commit()
 
         return True
 
-    def get_tasks_statistics(self) -> dict:
-        """Get task statistics for the current user."""
+    def get_tasks_statistics(
+        self
+    ) -> dict:
+
         tasks = self.db.query(Task).filter(
             Task.user_id == self.current_user.id
         ).all()
 
         return {
             "total": len(tasks),
+
             "pending": sum(
-                1 for t in tasks if t.status == TaskStatus.PENDING
+                1
+                for t in tasks
+                if t.status == TaskStatus.PENDING
             ),
+
             "in_progress": sum(
-                1 for t in tasks if t.status == TaskStatus.IN_PROGRESS
+                1
+                for t in tasks
+                if t.status == TaskStatus.IN_PROGRESS
             ),
+
             "completed": sum(
-                1 for t in tasks if t.status == TaskStatus.COMPLETED
+                1
+                for t in tasks
+                if t.status == TaskStatus.COMPLETED
             ),
+
             "scheduled": sum(
-                1 for t in tasks if t.scheduled_time is not None
+                1
+                for t in tasks
+                if t.scheduled_time is not None
             )
         }

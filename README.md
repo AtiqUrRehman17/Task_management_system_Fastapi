@@ -1,177 +1,593 @@
 # Task Management System API
 
-A production-ready RESTful API for managing tasks with secure JWT authentication, built with FastAPI and SQLAlchemy.
+A production-ready RESTful Task Management API built with FastAPI, SQLAlchemy, JWT Authentication, Redis, and Celery. The system supports user authentication, task management, scheduling, and asynchronous background notifications.
 
-## 📋 Table of Contents
+---
 
-- [Task Management System API](#task-management-system-api)
-  - [📋 Table of Contents](#-table-of-contents)
-  - [✨ Features](#-features)
-  - [🛠 Technology Stack](#-technology-stack)
-  - [📁 Project Structure](#-project-structure)
-  - [💻 Installation](#-installation)
-    - [Prerequisites](#prerequisites)
-    - [Step 1: Clone the Repository](#step-1-clone-the-repository)
-    - [Step 2: Create a Virtual Environment](#step-2-create-a-virtual-environment)
-- [install dependencies](#install-dependencies)
-- [Step 4: Configure Environment Variables](#step-4-configure-environment-variables)
-  - [🚀 Running the Application](#-running-the-application)
-  - [Security Features](#security-features)
-  - [🎯 Quick Start Commands](#-quick-start-commands)
+# 📋 Table of Contents
 
-## ✨ Features
+* [Overview](#overview)
+* [Features](#features)
+* [Technology Stack](#technology-stack)
+* [Architecture](#architecture)
+* [Project Structure](#project-structure)
+* [Installation](#installation)
+* [Environment Variables](#environment-variables)
+* [Running the Application](#running-the-application)
+* [Running Redis](#running-redis)
+* [Running Celery Worker](#running-celery-worker)
+* [API Documentation](#api-documentation)
+* [Notification Workflow](#notification-workflow)
+* [Testing Notifications](#testing-notifications)
+* [Security Features](#security-features)
+* [Future Improvements](#future-improvements)
 
-- **User Authentication**
-  - Secure user registration and login
-  - JWT-based authentication with token expiry
-  - Password hashing using bcrypt
-  - Account activation/deactivation support
+---
 
-- **Task Management**
-  - Create, read, update, and delete tasks
-  - Automatic timestamping on task creation
-  - Task status tracking (pending, in_progress, completed)
-  - Search and filter capabilities
-  - Pagination support for large datasets
-  - User-specific task isolation
+# Overview
 
-- **Scheduling & Notifications**
-  - Future task scheduling with datetime support
-  - Automatic notifications 1 hour and 1 day before scheduled tasks
-  - Background scheduler for notification handling
+The Task Management System API allows authenticated users to manage their tasks efficiently. Users can create, update, retrieve, and delete tasks while also scheduling future reminders.
 
-- **Security**
-  - JWT token validation on protected routes
-  - Password strength validation
-  - SQL injection protection via SQLAlchemy ORM
-  - CORS middleware configuration
+The application follows a layered architecture:
 
-## 🛠 Technology Stack
+* FastAPI for API endpoints
+* SQLAlchemy ORM for database operations
+* JWT Authentication for security
+* Redis as the message broker
+* Celery for asynchronous background task execution
+* SQLite/PostgreSQL for persistent storage
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| FastAPI | 0.104.1 | Web framework |
-| SQLAlchemy | 2.0.23 | ORM for database operations |
-| Pydantic | 2.5.0 | Data validation |
-| PyJWT | 2.8.0 | JWT token handling |
-| Passlib | 1.7.4 | Password hashing |
-| bcrypt | 4.0.1 | Password hashing algorithm |
-| APScheduler | 3.10.4 | Task scheduling for notifications |
-| Uvicorn | 0.24.0 | ASGI server |
-| PostgreSQL/SQLite | - | Database |
+---
 
-## 📁 Project Structure
+# Features
 
+## User Authentication
+
+* User Registration
+* User Login
+* JWT Token Authentication
+* Password Hashing with bcrypt
+* Protected API Routes
+
+## Task Management
+
+* Create Tasks
+* Retrieve Tasks
+* Update Tasks
+* Delete Tasks
+* Task Status Tracking
+* Pagination Support
+* Search Support
+* Sorting Support
+* User-specific Task Isolation
+
+## Task Scheduling & Notifications
+
+* Future Task Scheduling
+* Reminder Notifications
+* Asynchronous Background Processing
+* Celery-based Delayed Task Execution
+* Redis-backed Message Queue
+* Notification Cancellation on Task Updates
+* Notification Rescheduling
+
+## Production-Ready Architecture
+
+* Distributed Task Queue
+* Multi-worker Support
+* Horizontal Scaling Support
+* Separation of API and Background Processing
+* Redis-backed Scheduling
+
+---
+
+# Technology Stack
+
+| Technology          | Purpose                    |
+| ------------------- | -------------------------- |
+| FastAPI             | Web Framework              |
+| SQLAlchemy          | ORM                        |
+| SQLite / PostgreSQL | Database                   |
+| Pydantic            | Validation                 |
+| JWT                 | Authentication             |
+| Passlib + bcrypt    | Password Hashing           |
+| Redis               | Message Broker             |
+| Celery              | Background Task Processing |
+| Uvicorn             | ASGI Server                |
+
+---
+
+# Architecture
+
+## Previous Architecture (APScheduler)
+
+```text
+FastAPI
+   │
+   ▼
+NotificationService
+   │
+   ▼
+APScheduler
+   │
+   ▼
+Notification Function
+```
+
+### Limitations
+
+* In-memory scheduling
+* Jobs lost on restart
+* Not suitable for multiple workers
+* Difficult to scale horizontally
+
+---
+
+## Current Architecture (Redis + Celery)
+
+```text
+FastAPI
+   │
+   ▼
+TaskService
+   │
+   ▼
+NotificationService
+   │
+   ▼
+Redis Broker
+   │
+   ▼
+Celery Worker
+   │
+   ▼
+Notification Task
+```
+
+### Benefits
+
+* Production-ready
+* Persistent scheduling
+* Supports multiple workers
+* Scalable architecture
+* Distributed task processing
+
+---
+
+# Project Structure
+
+```text
 task_management_system/
 
 ├── app/
 │   ├── __init__.py
 │   ├── main.py
+│   │
+│   ├── celery_app.py
+│   │
 │   ├── core/
-│   │   ├── __init__.py
 │   │   ├── config.py
-│   │   ├── security.py
+│   │   ├── database.py
 │   │   ├── dependencies.py
-│   │   └── database.py
+│   │   └── security.py
+│   │
 │   ├── models/
-│   │   ├── __init__.py
 │   │   ├── user.py
 │   │   └── task.py
+│   │
+│   ├── routers/
+│   │   ├── auth.py
+│   │   └── tasks.py
+│   │
 │   ├── schemas/
-│   │   ├── __init__.py
 │   │   ├── user.py
 │   │   ├── task.py
 │   │   └── common.py
-│   ├── routers/
-│   │   ├── __init__.py
-│   │   ├── auth.py
-│   │   └── tasks.py
+│   │
 │   ├── services/
-│   │   ├── __init__.py
 │   │   ├── auth_service.py
 │   │   ├── task_service.py
 │   │   └── notification_service.py
+│   │
+│   ├── workers/
+│   │   ├── __init__.py
+│   │   └── notification_tasks.py
+│   │
+│   └── utils/
+│       └── response.py
+│
 ├── requirements.txt
 ├── .env
-└── run.py
-
-
-
-## 💻 Installation
-
-### Prerequisites
-
-- Python 3.9 or higher
-- PostgreSQL (optional, SQLite works for development)
-- pip package manager
-
-### Step 1: Clone the Repository
-
-```bash
-git clone https://github.com/yourusername/task-management-system.git
-cd task-management-system
+├── run.py
+└── tasks.db
 ```
 
-### Step 2: Create a Virtual Environment
+---
+
+# Installation
+
+## Prerequisites
+
+* Python 3.10+
+* Redis
+* Git
+* Virtual Environment
+
+---
+
+## Clone Repository
 
 ```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
-
-# macOS/Linux
-python3 -m venv venv
-source venv/bin/activate
-```
-
-# install dependencies
-```bash
-pip install -r requirements.txt
-``` 
-# Step 4: Configure Environment Variables
-Create a `.env` file in the root directory and add the following variables:
-
-```env  
-# Database Configuration
-DATABASE_URL=sqlite:///./tasks.db  # For development
-# For production with PostgreSQL:
-# DATABASE_URL=postgresql://user:password@localhost:5432/taskdb
-
-# JWT Configuration
-SECRET_KEY=your-super-secret-key-change-this-in-production
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-```
-## 🚀 Running the Application
-```bash
-python run.py
-```
-
-## Security Features
-- **JWT Authentication**: All protected routes require a valid JWT token, which is generated upon successful login and includes an expiration time.
-- **Password Hashing**: User passwords are securely hashed using bcrypt before being stored in the database, ensuring that plaintext passwords are never saved.
-- **Input Validation**: Pydantic models are used to validate incoming data, preventing common security vulnerabilities such as SQL injection and ensuring data integrity.
-- **CORS Middleware**: Configured to allow cross-origin requests from trusted domains, enhancing security while enabling frontend integration.
-
-## 🎯 Quick Start Commands
-```bash
-# Clone and setup
 git clone <repository-url>
 cd task-management-system
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+---
+
+## Create Virtual Environment
+
+### Windows
+
+```bash
+python -m venv myenv
+myenv\Scripts\activate
+```
+
+### Linux/macOS
+
+```bash
+python3 -m venv myenv
+source myenv/bin/activate
+```
+
+---
+
+## Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+# Environment Variables
+
+Create a `.env` file:
+
+```env
+DATABASE_URL=sqlite:///./tasks.db
+
+SECRET_KEY=your-secret-key
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
+```
+
+---
+
+# Running the Application
+
+## Start FastAPI
+
+```bash
+python run.py
+```
+
+or
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Expected Output:
+
+```text
+Uvicorn running on http://0.0.0.0:8000
+```
+
+---
+
+# Running Redis
+
+## Using Docker
+
+```bash
+docker run -d --name redis -p 6379:6379 redis
+```
+
+Start existing container:
+
+```bash
+docker start redis
+```
+
+Verify:
+
+```bash
+docker ps
+```
+
+---
+
+# Running Celery Worker
+
+Open a separate terminal:
+
+### Windows
+
+```bash
+celery -A app.celery_app:celery_app worker --pool=solo --loglevel=info
+```
+
+Expected Output:
+
+```text
+[tasks]
+ . app.workers.notification_tasks.send_notification
+```
+
+This confirms the worker has successfully registered the notification task.
+
+---
+
+# API Documentation
+
+After starting the application:
+
+Swagger UI:
+
+```text
+http://localhost:8000/docs
+```
+
+ReDoc:
+
+```text
+http://localhost:8000/redoc
+```
+
+---
+
+# Notification Workflow
+
+## Task Creation
+
+When a task is created:
+
+```text
+User
+  │
+  ▼
+POST /tasks
+  │
+  ▼
+Task saved in database
+  │
+  ▼
+NotificationService
+  │
+  ▼
+Celery task scheduled
+  │
+  ▼
+Task stored in Redis
+```
+
+---
+
+## Task Update
+
+When a scheduled task is updated:
+
+```text
+Existing notifications cancelled
+          │
+          ▼
+New notifications scheduled
+          │
+          ▼
+Stored again in Redis
+```
+
+---
+
+## Task Deletion
+
+When a task is deleted:
+
+```text
+Delete Task
+      │
+      ▼
+Revoke Celery Notifications
+      │
+      ▼
+Remove Task from Database
+```
+
+---
+
+# Testing Notifications
+
+## Step 1
+
+Start Redis.
+
+---
+
+## Step 2
+
+Start FastAPI.
+
+---
+
+## Step 3
+
+Start Celery Worker.
+
+---
+
+## Step 4
+
+Login and obtain JWT token.
+
+---
+
+## Step 5
+
+Authorize in Swagger UI.
+
+---
+
+## Step 6
+
+Create a task with a future scheduled time.
+
+Example:
+
+```json
+{
+  "title": "Test Notification",
+  "description": "Testing Celery",
+  "status": "pending",
+  "scheduled_time": "2026-12-31T23:00:00Z"
+}
+```
+
+---
+
+## Step 7
+
+Observe Celery Worker logs.
+
+Expected:
+
+```text
+Task received
+Notification sent to user@example.com
+```
+
+---
+
+## Quick Testing Tip
+
+For faster testing:
+
+Temporarily replace:
+
+```python
+timedelta(days=1)
+timedelta(hours=1)
+```
+
+with:
+
+```python
+timedelta(minutes=2)
+timedelta(minutes=1)
+```
+
+Then create a task scheduled a few minutes in the future.
+
+---
+
+# Security Features
+
+## JWT Authentication
+
+* Secure access tokens
+* Expiration support
+* Protected routes
+
+## Password Hashing
+
+* bcrypt hashing
+* Plain-text passwords never stored
+
+## Input Validation
+
+* Pydantic schema validation
+* Type-safe request handling
+
+## ORM Security
+
+* SQLAlchemy ORM
+* Protection against SQL injection
+
+## CORS Support
+
+Configurable CORS middleware for frontend integration.
+
+---
+
+# Future Improvements
+
+## Email Notifications
+
+* SMTP Integration
+* Gmail SMTP
+* SendGrid
+* Amazon SES
+
+## Retry Mechanism
+
+Automatic retry for failed notifications.
+
+## Alembic Migrations
+
+Database versioning and schema migrations.
+
+## Docker Deployment
+
+Containerized FastAPI, Redis, and Celery setup.
+
+## Monitoring
+
+* Flower Dashboard
+* Celery Monitoring
+* Redis Monitoring
+
+## WebSocket Notifications
+
+Real-time browser notifications.
+
+---
+
+# Quick Start
+
+```bash
+# Clone project
+git clone <repository-url>
+
+# Enter directory
+cd task-management-system
+
+# Create environment
+python -m venv myenv
+
+# Activate environment
+myenv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
 
-# Configure
-cp .env.example .env
-# Edit .env with your settings
+# Start Redis
+docker start redis
 
-# Initialize database
-python -c "from app.core.database import engine, Base; from app.models import user, task; Base.metadata.create_all(bind=engine)"
-
-# Run
+# Terminal 1
 python run.py
 
-# Access API docs
-open http://localhost:8000/docs
+# Terminal 2
+celery -A app.celery_app:celery_app worker --pool=solo --loglevel=info
+
+# Open Swagger
+http://localhost:8000/docs
 ```
+
+---
+
+# Author
+
+Task Management System API built using FastAPI, SQLAlchemy, Redis, and Celery following scalable backend development practices.
