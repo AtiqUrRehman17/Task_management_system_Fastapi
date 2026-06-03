@@ -61,7 +61,9 @@ A production-ready RESTful API for managing tasks with secure JWT authentication
 | PostgreSQL/SQLite | - | Database |
 
 ## 📁 Project Structure
+
 task_management_system/
+
 ├── app/
 │   ├── __init__.py
 │   ├── main.py
@@ -89,9 +91,6 @@ task_management_system/
 │   │   ├── auth_service.py
 │   │   ├── task_service.py
 │   │   └── notification_service.py
-│   └── utils/
-│       ├── __init__.py
-│       └── validators.py
 ├── requirements.txt
 ├── .env
 └── run.py
