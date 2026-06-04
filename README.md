@@ -21,7 +21,7 @@ A production-ready RESTful Task Management API built with FastAPI, SQLAlchemy, J
   - [Limitations](#limitations)
   - [Current Architecture (Redis + Celery)](#current-architecture-redis--celery)
     - [Benefits:](#benefits)
-  - [Project Structure](#project-structure)
+- [Project Structure](#project-structure)
   - [Installation](#installation)
     - [Prerequisites](#prerequisites)
   - [Clone Repository](#clone-repository)
@@ -194,14 +194,14 @@ Notification Task
 - Scalable architecture
 - Distributed task processing
 
-## Project Structure
+# Project Structure
 
+```
 task_management_system/
-
+│
 ├── app/
 │   ├── __init__.py
 │   ├── main.py
-│   │
 │   ├── celery_app.py
 │   │
 │   ├── core/
@@ -237,6 +237,7 @@ task_management_system/
 │
 ├── alembic/
 │   ├── versions/
+│   │   └── 30918620af05_initial_migration.py
 │   ├── env.py
 │   └── script.py.mako
 │
@@ -245,7 +246,7 @@ task_management_system/
 ├── .env
 ├── run.py
 └── tasks.db
-
+```
 ## Installation
 ### Prerequisites
 
