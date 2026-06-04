@@ -275,34 +275,42 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-```bashalembic upgrade head
+``` 
+bashalembic upgrade head
 ```
 
-```bashuvicorn app.main:app --reload
+```bash
+uvicorn app.main:app --reload
 ```
 
-```bashcelery -A app.celery_app worker --loglevel=info
+```bash
+celery -A app.celery_app worker --loglevel=info
 ```
 ### Using Docker
 
-```docker run -d --name redis -p 6379:6379 redis
+```
+docker run -d --name redis -p 6379:6379 redis
 ```
 ## Start existing container:
 
-```docker start redis
+```
+docker start redis
 ```
 
 ## Running Celery Worker
 Windows
-```bashcelery -A app.celery_app worker --loglevel=info
+```bash
+celery -A app.celery_app worker --loglevel=info
 ```
 Linux/Mac
-```bashcelery -A app.celery_app worker --loglevel=info
+```bash
+celery -A app.celery_app worker --loglevel=info
 ```
 ## API Documentation
 Once the FastAPI server is running, you can access the interactive API documentation at:
 
-```http://localhost:8000/docs
+```
+http://localhost:8000/docs
 ```
 
 ## Notification Workflow
