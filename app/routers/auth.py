@@ -7,8 +7,8 @@ from ..services.auth_service import AuthService
 from ..utils.response import api_response
 
 router = APIRouter(
-    prefix="/users",
-    tags=["Users"]
+    prefix="/auth",
+    tags=["Auth"]
 )
 
 

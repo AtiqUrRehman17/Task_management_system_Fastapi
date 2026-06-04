@@ -10,7 +10,8 @@ from ..schemas.task import (
     TaskCreate,
     TaskUpdate,
     TaskResponse,
-    TaskListResponse
+    TaskListResponse,
+    TaskStatisticsResponse
 )
 from ..services.task_service import TaskService
 from ..pagination.pagination import PaginationParams
@@ -85,7 +86,7 @@ def get_task_statistics(
     return api_response(
         status=True,
         message="Statistics retrieved successfully",
-        data=stats
+        data=TaskStatisticsResponse(**stats).model_dump()
     )
 
 

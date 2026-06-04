@@ -18,18 +18,22 @@ A production-ready RESTful Task Management API built with FastAPI, SQLAlchemy, J
 - [Technology Stack](#technology-stack)
 - [Architecture](#architecture)
   - [Previous Architecture (APScheduler)](#previous-architecture-apscheduler)
-  - [Limitations](#limitations)
+    - [Limitations](#limitations)
   - [Current Architecture (Redis + Celery)](#current-architecture-redis--celery)
-    - [Benefits:](#benefits)
+  - [Notification Task](#notification-task)
+    - [Benefits](#benefits)
 - [Project Structure](#project-structure)
-  - [Installation](#installation)
-    - [Prerequisites](#prerequisites)
+- [Installation](#installation)
+  - [Prerequisites](#prerequisites)
   - [Clone Repository](#clone-repository)
+  - [Create Virtual Environment and Install Dependencies](#create-virtual-environment-and-install-dependencies)
     - [Using Docker](#using-docker)
   - [Start existing container:](#start-existing-container)
   - [Running Celery Worker](#running-celery-worker)
+  - [Apply Database Migrations](#apply-database-migrations)
   - [API Documentation](#api-documentation)
   - [Notification Workflow](#notification-workflow)
+    - [Task Creation](#task-creation)
   - [Task Update](#task-update)
   - [Task Deletion](#task-deletion)
   - [Testing Notifications](#testing-notifications)
@@ -40,19 +44,25 @@ A production-ready RESTful Task Management API built with FastAPI, SQLAlchemy, J
   - [Step 5](#step-5)
   - [Step 6](#step-6)
   - [Step 7](#step-7)
+  - [Step 8](#step-8)
   - [Security Features](#security-features)
-    - [JWT Authentication](#jwt-authentication)
+  - [JWT Authentication](#jwt-authentication)
   - [Password Hashing](#password-hashing)
   - [Input Validation](#input-validation)
+  - [Response Consistency](#response-consistency)
   - [ORM Security](#orm-security)
+  - [CORS Support](#cors-support)
   - [Database Migrations](#database-migrations-1)
   - [Recent Changes](#recent-changes)
+  - [Auth Endpoint Path Update](#auth-endpoint-path-update)
+  - [Response Consistency Update](#response-consistency-update)
+  - [Task Statistics Response Update](#task-statistics-response-update)
+  - [Configuration Update](#configuration-update)
   - [User Model Updates](#user-model-updates)
   - [JWT Token Payload Updates](#jwt-token-payload-updates)
   - [Password Hashing Updates](#password-hashing-updates)
-  - [Database Migration](#database-migration)
-  - [Requirements Updates](#requirements-updates)
-      - [Task Management System API built using FastAPI, SQLAlchemy, Redis, Celery, and Alembic following scalable backend development practices.](#task-management-system-api-built-using-fastapi-sqlalchemy-redis-celery-and-alembic-following-scalable-backend-development-practices)
+  - [Database Migration Updates](#database-migration-updates)
+  - [Author](#author)
 
 ---
 
@@ -94,6 +104,7 @@ The application follows a layered architecture:
 * Search Support
 * Sorting Support
 * User-specific Task Isolation
+* Task Statistics Summary
 
 ## Task Scheduling & Notifications
 
@@ -157,14 +168,19 @@ APScheduler
 Notification Function
 
 ```
-## Limitations
-- In-memory scheduling
-- Jobs lost on restart
-- Not suitable for multiple workers
-- Difficult to scale horizontally
+
+### Limitations
+
+* In-memory scheduling
+* Jobs lost on restart
+* Not suitable for multiple workers
+* Difficult to scale horizontally
+
+---
 
 ## Current Architecture (Redis + Celery)
 
+```
 FastAPI
    │
    ▼
@@ -184,15 +200,19 @@ Redis Broker
 Celery Worker
    │
    ▼
+   ```
 
-Notification Task
+## Notification Task
 
-### Benefits:
-- Production-ready
-- Persistent scheduling
-- Supports multiple workers
-- Scalable architecture
-- Distributed task processing
+### Benefits
+
+* Production-ready
+* Persistent scheduling
+* Supports multiple workers
+* Scalable architecture
+* Distributed task processing
+
+---
 
 # Project Structure
 
@@ -203,6 +223,9 @@ task_management_system/
 │   ├── __init__.py
 │   ├── main.py
 │   ├── celery_app.py
+├── pagination/
+│   ├── __init__.py
+│   ├── pagination.py
 │   │
 │   ├── core/
 │   │   ├── config.py
@@ -247,26 +270,29 @@ task_management_system/
 ├── run.py
 └── tasks.db
 ```
-## Installation
-### Prerequisites
 
-Python 3.10+
+---
 
-Redis
+# Installation
 
-Git
+## Prerequisites
 
-Virtual Environment
+* Python 3.10+
+* Redis
+* Git
+* Virtual Environment
+
+---
 
 ## Clone Repository
+
 ```bash
 git clone <repository-url>
-```
-
-```bash
 cd task_management_system
 ```
+## Create Virtual Environment and Install Dependencies
 
+```
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -306,18 +332,27 @@ Linux/Mac
 ```bash
 celery -A app.celery_app worker --loglevel=info
 ```
-## API Documentation
-Once the FastAPI server is running, you can access the interactive API documentation at:
+
+## Apply Database Migrations
 
 ```
-http://localhost:8000/docs
+bash
+alembic upgrade head
 ```
+## API Documentation
+After starting the application, access the interactive API documentation:
+
+- Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
+- ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+This documentation provides a user-friendly interface to explore and test all available API endpoints, including authentication, task management, and scheduling features.
 
 ## Notification Workflow
-```User
+### Task Creation
+```
+User
   │
   ▼
-POST /tasks
+POST /api/v1/tasks/
   │
   ▼
 Task saved in database
@@ -333,7 +368,8 @@ Task stored in Redis
 ```
 
 ## Task Update
-```Existing notifications cancelled
+```
+Existing notifications cancelled
           │
           ▼
 New notifications scheduled
@@ -342,7 +378,8 @@ New notifications scheduled
 Stored again in Redis
 ```
 ## Task Deletion
-```Delete Task
+```
+Delete Task
       │
       ▼
 Revoke Celery Notifications
@@ -350,46 +387,76 @@ Revoke Celery Notifications
       ▼
 Remove Task from Database
 ```
-
 ## Testing Notifications
+
 ## Step 1
-Start Redis.
-
+Start Redis:
+```
+docker start redis
+```
 ## Step 2
-Start FastAPI.
-
-## Step 3
-Start Celery Worker.
-
-## Step 4
-Login and obtain JWT token.
-
-## Step 5
-Authorize in Swagger UI.
-
-## Step 6
-Create a task with a future scheduled time.
-
-example
-```{
-  "title": "Test Notification",
-  "description": "Testing Celery",
-  "status": "pending",
-  "scheduled_time": "2026-12-31T23:00:00Z"
-}
+Start FastAPI application:
+```bash
+uvicorn app.main:app --reload
+```
+or 
+```
+bash
+python run.py
 ```
 
+## Step 3
+Start Celery Worker:
+
+```bash
+celery -A app.celery_app worker --loglevel=info
+``` 
+## Step 4
+Register a new user at:
+```
+POST /api/v1/auth/register
+```
+## Step 5
+Login and obtain JWT token at:
+```
+POST /api/v1/auth/login
+```
+## Step 6
+```
+Authorize in Swagger UI using the JWT token.
+```
 ## Step 7
-Expected:
-```Task received
+Create a task:
+
+```
+POST /api/v1/tasks/
+```
+```
+eg
+{
+  "title": "Test Notification",
+  "description": "Testing Celery",
+  "status": "pending"
+}
+```
+## Step 8
+Observe Celery Worker logs
+
+Expected Output:
+
+```
+Task received
 Notification sent to user@example.com
 ```
 ## Security Features
-### JWT Authentication
+
+## JWT Authentication
 - Secure access tokens
 - Expiration support
 - Protected routes
-- Token payload includes ID, First Name, - - Last Name, Username, and Email
+- Token payload includes ID, First Name, Last Name, Username, and Email
+- pydantic-settings handles SECRET_KEY loading (no os.getenv mixing)
+- App fails immediately at startup if SECRET_KEY is missing
 
 ## Password Hashing
 - Direct bcrypt hashing (no passlib dependency)
@@ -399,19 +466,47 @@ Notification sent to user@example.com
 ## Input Validation
 - Pydantic schema validation
 - Type-safe request handling
-- Password must contain uppercase, lowercase, and digit
+- Password must contain at least one uppercase letter, one lowercase letter, and one digit
+
+## Response Consistency
+- All endpoints use api_response() from utils/response.py
+- Task statistics use TaskStatisticsResponse Pydantic schema for validated responses
+- No plain dict responses
 
 ## ORM Security
 - SQLAlchemy ORM
 - Protection against SQL injection
   
+## CORS Support
+- Configurable CORS middleware for frontend integration
+
 ## Database Migrations
 Alembic is used for database schema versioning and migrations.
 
-Setup (Already Done):
-Alembic is already initialized in this project. No setup needed.
+Note: Alembic is already initialized in this project. No setup needed.
 
 ## Recent Changes
+## Auth Endpoint Path Update
+- Register path changed from /api/v1/users/register to /api/v1/auth/register
+- Login path changed from /api/v1/users/login to /api/v1/auth/login
+- Both endpoints now grouped under Auth tag in Swagger UI
+
+## Response Consistency Update
+- Removed unused ResponseModel from schemas/common.py
+- Deleted schemas/common.py entirely
+- All endpoints consistently use api_response() from utils/response.py
+
+## Task Statistics Response Update
+- get_tasks_statistics() no longer returns a plain dict
+- Added TaskStatisticsResponse Pydantic schema in schemas/task.py
+- Statistics endpoint now returns validated Pydantic response
+  
+## Configuration Update
+- Removed os.getenv("SECRET_KEY") from config.py
+- Removed import os from config.py
+- SECRET_KEY is now handled entirely by pydantic-settings
+- App fails immediately at startup if SECRET_KEY is missing in .env
+
 ## User Model Updates
 - Added first_name field (Optional)
 - Added last_name field (Optional)
@@ -419,17 +514,12 @@ Alembic is already initialized in this project. No setup needed.
 ## JWT Token Payload Updates
 - Token now includes first_name and last_name
 - Token now includes user id as sub
-
 ## Password Hashing Updates
 - Removed passlib dependency completely
 - Now using bcrypt directly for password hashing and verification
-## Database Migration
+## Database Migration Updates
 - Alembic integrated for safe schema migrations
 - Initial migration created for users and tasks tables
+## Author
 
-## Requirements Updates
-- Removed passlib
-- Added alembic
-- bcrypt used directly
-
-#### Task Management System API built using FastAPI, SQLAlchemy, Redis, Celery, and Alembic following scalable backend development practices.
+Task Management System API built using FastAPI, SQLAlchemy, Redis, Celery, and Alembic following scalable backend development practices.
