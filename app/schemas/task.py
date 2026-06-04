@@ -38,10 +38,8 @@ class TaskUpdate(BaseModel):
 class TaskResponse(TaskBase):
     id: int
     user_id: int
-    scheduled_time: Optional[datetime]
     created_at: datetime
     updated_at: Optional[datetime]
-    
     class Config:
         from_attributes = True
 

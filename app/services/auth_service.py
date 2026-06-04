@@ -29,6 +29,8 @@ class AuthService:
         db_user = User(
             email=user_data.email,
             username=user_data.username,
+            first_name=user_data.first_name,
+            last_name=user_data.last_name,
             hashed_password=hashed_password
         )
 
@@ -50,7 +52,6 @@ class AuthService:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        
         if not verify_password(login_data.password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -71,6 +72,8 @@ class AuthService:
         access_token = create_access_token(
             data={
                 "sub": str(user.id),
+                "first_name": user.first_name,
+                "last_name": user.last_name,
                 "username": user.username,
                 "email": user.email
             },
