@@ -244,7 +244,6 @@ task_management_system/
 │   ├── schemas/
 │   │   ├── user.py
 │   │   ├── task.py
-│   │   └── common.py
 │   │
 │   ├── services/
 │   │   ├── auth_service.py
